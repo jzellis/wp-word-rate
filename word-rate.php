@@ -15,6 +15,7 @@ defined('ABSPATH') or die("No script kiddies please!");
 class JZE_Word_Rate{
 
 static function showWordRatePage() {
+	$errMsg = false;
 	setlocale( LC_MONETARY, get_locale() );
 	$localsettings = localeconv();
 	if ( $localsettings['currency_symbol'] == "" ) {
@@ -24,11 +25,17 @@ static function showWordRatePage() {
 	if ( $_POST ) {
 		$user_word_rates = $_POST['word_rate'];
 		foreach ( $user_word_rates as $id=>$amount ) {
+			$user = get_user_by('id',$id);
+			if(is_numeric($amount)){
 			$amount = money_format( '%i', $amount );
 			update_user_meta( $id, "word_rate", $amount );
+		}else{
+		$errMsg .= "You must supply a numeric value for " . $user->user_nicename . "<br>";
+		}
 		}
 	}
 	if ( current_user_can( 'editor' ) || current_user_can( 'administrator' ) ): ?>
+	<? if($errMsg != false): ?><div class='error'><?= $errMsg ?></div><? endif; ?>
 <h2>Author Word Rate</h2>
 <p>This allows you to assign a per word payment rate to authors, which will be displayed in the post list and in each post's editor, to help you plan your editorial budget.</p>
 <form method="POST">
@@ -87,13 +94,13 @@ static function render_calculated_word_rate_box( $post ) {
 static function my_users_menu() {
 	add_users_page( 'Word Rate', 'Word Rate', 'edit_users', 'word-rate', array('JZE_Word_Rate','showWordRatePage') );
 }
-static function add_post_fee_column( $columns ) {
+static function add_fee_column( $columns ) {
 	if ( current_user_can( 'editor' ) || current_user_can( 'administrator' ) ):
 		return array_merge( $columns,
 			array( 'post_fee' => __( 'Post Fee' ) ) );
 	endif;
 }
-static function custom_columns( $column, $post_id ) {
+static function post_fee_column( $column, $post_id ) {
 	if ( $column == "post_fee" && ( current_user_can( 'editor' ) || current_user_can( 'administrator' ) ) ) {
 		$post = get_post( $post_id );
 		$wc = str_word_count( strip_tags( $post->post_content ) );
@@ -102,9 +109,20 @@ static function custom_columns( $column, $post_id ) {
 	}
 }
 
+static function user_fee_column($value,$column, $user_id ) {
+	if ( $column == "post_fee" && ( current_user_can( 'editor' ) || current_user_can( 'administrator' ) ) ) {
+
+		$wordrate = get_user_meta( $user_id, 'word_rate' );
+		return $wordrate[0];
+	}
 }
-add_filter( 'manage_post_posts_columns' , array('JZE_Word_Rate','add_post_fee_column') );
+
+}
+add_filter( 'manage_post_posts_columns' , array('JZE_Word_Rate','add_fee_column') );
 add_action( 'add_meta_boxes_post', array('JZE_Word_Rate','word_rate_meta_box') );
 add_action( 'admin_menu', array('JZE_Word_Rate','my_users_menu' ));
-add_action( 'manage_posts_custom_column' , array('JZE_Word_Rate','custom_columns'), 10, 2 );
+add_action( 'manage_posts_custom_column' , array('JZE_Word_Rate','post_fee_column'), 10, 2 );
+add_filter('manage_users_columns', array('JZE_Word_Rate','add_fee_column'));
+add_filter('manage_users_custom_column', array('JZE_Word_Rate','user_fee_column'), 10, 3);
+
 ?>
