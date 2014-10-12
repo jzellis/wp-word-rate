@@ -98,6 +98,8 @@ static function add_fee_column( $columns ) {
 	if ( current_user_can( 'editor' ) || current_user_can( 'administrator' ) ):
 		return array_merge( $columns,
 			array( 'post_fee' => __( 'Post Fee' ) ) );
+	else:
+		return $columns;
 	endif;
 }
 static function post_fee_column( $column, $post_id ) {
